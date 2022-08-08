@@ -1,0 +1,14 @@
+start-master.sh
+sudo ss -tunelp | grep 8080
+start-worker.sh spark://ubuntu:7077
+sudo updatedb
+locate start-worker.sh
+
+
+My Spark URL is spark://ubuntu:7077.
+
+
+stop  master and worker
+
+$SPARK_HOME/sbin/stop-worker.sh
+$SPARK_HOME/sbin/stop-master.sh
