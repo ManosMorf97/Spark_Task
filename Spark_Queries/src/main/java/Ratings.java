@@ -1,6 +1,5 @@
 import java.util.Date;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 
 public class Ratings {
 	private String userId;
