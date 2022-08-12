@@ -5,11 +5,12 @@
 
 import java.io.Serializable;
 
+
 /**
  * @author manos
  *
  */
-public class Movies implements Serializable {
+public class Movie implements Serializable{
 	public String movieId;
 	public String title;
 	public String genres;
@@ -17,7 +18,10 @@ public class Movies implements Serializable {
 	/**
 	 * 
 	 */
-	public Movies(String movieId, String title, String genres) {
+	public Movie() {
+		
+	}
+	public Movie(String movieId, String title, String genres) {
 		this.movieId = movieId;
 		this.title = title;
 		this.genres = genres;
@@ -32,6 +36,10 @@ public class Movies implements Serializable {
 
 	public String getGenres() {
 		return genres;
+	}
+	
+	public int MovieId_Number() {
+		return Integer.parseInt(movieId);
 	}
 
 }
