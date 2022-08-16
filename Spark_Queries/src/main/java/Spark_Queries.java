@@ -5,9 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
 
-import org.apache.spark.*;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.SparkSession;
 
@@ -15,37 +13,46 @@ import scala.Tuple2;
 
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.VoidFunction;
-import org.apache.spark.sql.SparkSession;
-//import java.io.FileReader;
 import java.util.List;
 
 public class Spark_Queries {
 	
 	public static void main(String[] args) {
+		System.out.println("Ready");
+		String path="/home/manos/Μεταπτυχιακό/1o Εξάμηνο/"
+				+ "Συστήματα Διαχείρησης Δεδομένων Μεγάλης Κλίμακας/"
+				+ "Εργασία/Spark_Queries/";
 		SparkSession session=SparkSession.
 				builder()
 				.appName("Spark_Queries")
-				.master("local[*]")
+				.master("local[4]")
 				.getOrCreate();
 		try(JavaSparkContext context=new 
 				JavaSparkContext(session.sparkContext())){
+			System.out.println("Top 25 most viewed movies");
 			//ArrayList<Movie> movies=new ArrayList<Movie>();
 			JavaRDD<String> movie_lines=context.
-					textFile("ml-10m/ml-10M100K/movies.dat");
+					textFile(path+"ml-10m/ml-10M100K/movies.dat");
 			JavaRDD<String> rating_lines=context.
-					textFile("ml-10m/ml-10M100K/ratings.dat");
-			JavaRDD<Movie> movies=movie_lines.map(
-					line->createMovie(line));
-			JavaPairRDD<String,Integer>pairs_movie_1=rating_lines.mapToPair( 
-					line->new Tuple2 (takeMovieId(line),-1) ) ;
-			JavaPairRDD<String,Integer>movie_views_rdd=pairs_movie_1.
-					reduceByKey (( a , b)-> a + b) ;
+					textFile(path+"ml-10m/ml-10M100K/ratings.dat");
+			//JavaRDD<Movie> movies=movie_lines.map(
+				//	line->createMovie(line));
+			JavaPairRDD<String,Integer>movie_views_rdd=rating_lines.mapToPair( 
+					line->new Tuple2<String,Integer>(takeMovieId(line),-1)).
+						reduceByKey (( a , b)-> a + b) ; 
 			JavaPairRDD<Integer,String>views_movie_rdd=movie_views_rdd.
-					mapToPair(mvr->new Tuple2(mvr._2(),mvr._1()));
-			views_movie_rdd.sortByKey();
+					mapToPair(mvr->new Tuple2<Integer,String>(mvr._2(),mvr._1())).
+					sortByKey();
 			views_movie_rdd.filter(p->true).top(25);
+			movie_views_rdd=views_movie_rdd.mapToPair(
+					vmr->new Tuple2<String,Integer>(vmr._2(),vmr._1()));//
+			JavaPairRDD<String,String> movie_info=movie_lines.mapToPair(
+					line->new Tuple2<String,String>(
+							line.substring(line.indexOf("::")),
+								line.replace("::"," ")));
+			movie_views_rdd.join(movie_info).foreach(
+					movie->System.out.println(movie._2()._2())
+					);
 			//join with movies.dat
 			//print results
 		    //write your code

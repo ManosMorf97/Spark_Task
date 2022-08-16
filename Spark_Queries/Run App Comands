@@ -1,0 +1,11 @@
+ cd opt/spark/bin
+ sudo chmod +x ./spark-submit
+ cd ../../..
+ cd "/home/manos/Μεταπτυχιακό/1o Εξάμηνο/Συστήματα Διαχείρησης Δεδομένων Μεγάλης Κλίμακας/Εργασία/Spark_Queries"
+./spark-submit --class com.spark.example.Spark_Queries  --master local[4] "target/Spark_Queries-0.0.1-SNAPSHOT.jar"
+ 
+ cd opt/spark/bin
+./spark-submit --class "Spark_Queries"  --master local[4] "/home/manos/Μεταπτυχιακό/1o Εξάμηνο/Συστήματα Διαχείρησης Δεδομένων Μεγάλης Κλίμακας/Εργασία/Spark_Queries/target/Spark_Queries-0.0.1-SNAPSHOT.jar"
+
+
+/Spark_Queries/target/Spark_Queries-0.0.1-SNAPSHOT.jar
