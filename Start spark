@@ -12,3 +12,6 @@ stop  master and worker
 
 $SPARK_HOME/sbin/stop-worker.sh
 $SPARK_HOME/sbin/stop-master.sh
+
+
+java.lang.ClassCastException: class scala.Tuple2 cannot be cast to class java.lang.Comparable java.lang.ClassCastException: class scala.Tuple2 cannot be cast to class java.lang.Comparable 
