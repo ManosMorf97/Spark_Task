@@ -43,10 +43,10 @@ public class App {
 					textFile(path+"ml-10m/ml-10M100K/ratings.dat");
 			rating_lines=rating_lines.persist(StorageLevel.DISK_ONLY( )) ;
 			
-			
 			most_viewed_25_movies(context,movie_info,rating_lines);
 			Good_Comedies(context,movie_info,rating_lines);
 			top_10_romantic_movies_december(context,movie_info,rating_lines);
+			
 			
 			scanner.close();
 			
@@ -84,7 +84,7 @@ public class App {
 				top_movies_rdd.join(movie_info);
 		List<Tuple2<String,Tuple2<String,String>>> results=
 				results_rdd.take(25);
-		print_results(results,"The 25 most rated movies are");
+		print_results(results,"The 25 most rated movies are","");
 	}
 	
 	public static void  Good_Comedies(JavaSparkContext context,
@@ -117,7 +117,8 @@ public class App {
 				loved_movie_ids.join(comedies);
 		List<Tuple2<String,Tuple2<String,String>>> loved_comedies=
 				loved_comedies_rdd.collect();
-		print_results(loved_comedies,"User: "+user_id+" loves these comedies");
+		print_results(loved_comedies,"User: "+user_id+" loves these comedies",
+				"User: "+user_id+"does not love a comedy by this list");
 	}
 	
 	public static void top_10_romantic_movies_december(
@@ -147,11 +148,13 @@ public class App {
 				.map(res->new Tuple2<String,Tuple2<String,String>>(
 						res._2._1,new Tuple2<String,String>(res._2._1,res._2._2))).
 				collect(Collectors.toList());
-		print_results(results_fit_function,"Top 10 december romantic movies");		
+		print_results(results_fit_function,"Top 10 december romantic movies",
+				"Sorry no romantic movies rated on December");		
 	}
 	
 	public static void print_results(
-			List<Tuple2<String,Tuple2<String,String>>> results,String msg) {
+			List<Tuple2<String,Tuple2<String,String>>> results,String msg,
+			String msg_noRows) {
 		
 		List<String> results_2_2=results.stream()
 				.map(res->res._2._2).
@@ -159,9 +162,13 @@ public class App {
 		Collections.sort(results_2_2);
 		System.out.println("---------------------------------");
 		System.out.println(msg);
-		results_2_2.forEach(
-				res->System.out.println(res));
-		System.out.println("Done.Press any key to  continue");
+		if(results_2_2.isEmpty()) {
+			System.out.println(msg_noRows + " Press any key to continue");
+		}else {
+			results_2_2.forEach(
+					res->System.out.println(res));
+			System.out.println("Done.Press any key to  continue");
+		}
 		scanner.nextLine();
 	}
 	
@@ -187,7 +194,7 @@ public class App {
 	
 	public static boolean rated_on_december(String rating_line) {
 		List<String> attributes=Arrays.asList(rating_line.split("::"));
-		Long timestamp=Long.parseLong(attributes.get(3));
+		long timestamp=Long.parseLong(attributes.get(3));
 		Timestamp ts = new Timestamp(timestamp);
 		Date date = new Date(ts.getTime());
 		return date.toString().contains(" Dec ");
