@@ -5,8 +5,13 @@ import scala.Tuple2;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.storage.StorageLevel;
+
+import static org.apache.spark.sql.functions.col;
+
 
 import java.sql.Timestamp;
 import java.util.Arrays;
@@ -19,7 +24,7 @@ import java.util.stream.Collectors;
 public class App {
 	public static Scanner scanner=new Scanner(System.in);
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws InterruptedException {
 		System.out.println("Ready");
 		String path="/home/manos/Μεταπτυχιακό/1o Εξάμηνο/"
 				+ "Συστήματα Διαχείρησης Δεδομένων Μεγάλης Κλίμακας/"
@@ -32,20 +37,24 @@ public class App {
 		try(JavaSparkContext context=new 
 				JavaSparkContext(session.sparkContext())){
 			//ArrayList<Movie> movies=new ArrayList<Movie>();
+			String movies_path=path+"ml-10m/ml-10M100K/movies.dat";
+			String ratings_path=path+"ml-10m/ml-10M100K/ratings.dat";
 			JavaRDD<String> movie_lines=context.
-					textFile(path+"ml-10m/ml-10M100K/movies.dat");
+					textFile(movies_path);
 			JavaPairRDD<String,String> movie_info=movie_lines.mapToPair(
 					line->new Tuple2<String,String>(
 							line.substring(0,line.indexOf(':')),
 								line.replace(':',' ')));
 			movie_info=movie_info.persist(StorageLevel.MEMORY_AND_DISK( )) ;
 			JavaRDD<String> rating_lines=context.
-					textFile(path+"ml-10m/ml-10M100K/ratings.dat");
+					textFile(ratings_path);
 			rating_lines=rating_lines.persist(StorageLevel.DISK_ONLY( )) ;
 			
-			most_viewed_25_movies(context,movie_info,rating_lines);
-			Good_Comedies(context,movie_info,rating_lines);
-			top_10_romantic_movies_december(context,movie_info,rating_lines);
+			//most_viewed_25_movies(context,movie_info,rating_lines);
+			//Good_Comedies(context,movie_info,rating_lines);
+			//top_10_romantic_movies_december(context,movie_info,rating_lines);
+			
+			dataframes(session,movies_path,ratings_path);
 			
 			
 			scanner.close();
@@ -67,11 +76,13 @@ public class App {
 				line->new Tuple2<String,Integer>(takeMovieId(line),1));
 		JavaPairRDD<String,Integer> movie_views_rdd=movie_1_rdd.
 				reduceByKey (( a , b)-> a + b);
-		movie_views_rdd=movie_views_rdd.persist(StorageLevel.MEMORY_AND_DISK( ));
+		movie_views_rdd=movie_views_rdd.
+				persist(StorageLevel.MEMORY_AND_DISK( ));
 		JavaPairRDD<Integer,String> views_movie_rdd=movie_views_rdd.
 				mapToPair(mvr->
 					new Tuple2<Integer,String>(mvr._2(),mvr._1()));
-		//views_movie_rdd=views_movie_rdd.persist(StorageLevel.MEMORY_AND_DISK( ));
+		//views_movie_rdd=views_movie_rdd.
+		//persist(StorageLevel.MEMORY_AND_DISK( ));
 		JavaPairRDD<Integer,String>sorted_vmrdd=views_movie_rdd.
 				sortByKey(false);
 		List<String> top_movies=sorted_vmrdd.take(25).stream().
@@ -117,8 +128,11 @@ public class App {
 				loved_movie_ids.join(comedies);
 		List<Tuple2<String,Tuple2<String,String>>> loved_comedies=
 				loved_comedies_rdd.collect();
-		print_results(loved_comedies,"User: "+user_id+" loves these comedies",
-				"User: "+user_id+"does not love a comedy by this list");
+		if(loved_comedies.isEmpty())
+			System.out.println("User: "+user_id+"does not love a comedy by this list");
+		else
+			System.out.println("User: "+user_id+" loves "+loved_comedies.size()+" "
+					+ "comedies");
 	}
 	
 	public static void top_10_romantic_movies_december(
@@ -199,6 +213,105 @@ public class App {
 		Date date = new Date(ts.getTime());
 		return date.toString().contains(" Dec ");
 	}
+	
+	public static void dataframes(SparkSession session,
+			String movies_path,String ratings_path) 
+					throws InterruptedException {
+		
+			System.out.println("Now we will use Dataframes");
+			Thread.sleep(2);
+			
+			JavaRDD<Movie> movies=session.read().textFile(movies_path).
+					javaRDD().map(line->{
+						String [] parts=line.split("::");
+						return new Movie(parts[0],parts[1],parts[2]);
+					});
+			JavaRDD<Rating> ratings=session.read().textFile(ratings_path).
+					javaRDD().map(line->{
+						String [] parts=line.split("::");
+						return new Rating (parts[0],parts[1],parts[2],parts[3]);
+					});
+			
+			Dataset<Row> movies_df=session.createDataFrame(movies, Movie.class);
+			Dataset<Row> ratings_df=session.createDataFrame(ratings, Rating.class);
+			Dataset<Row> joined=ratings_df.join(movies_df,"movieId");
+			
+			
+			
+			
+			Dataset<Row> views=joined.groupBy("movieId","title","genres").count();
+			Dataset<Row> first_25=views.orderBy(views.col("count").desc());
+			System.out.println("Top 25 movies");
+			first_25.select("movieId","title","genres").show(25);
+			
+			System.out.println("Done Press any key to continue");
+			scanner.nextLine();
+			
+			Dataset<Row> users=joined.groupBy("userId").count();
+			String user_id_input="";
+			while(true) {
+				System.out.println("Choose a user from 1 "
+						+ "to " +users.count()+" to see the comedies they love");
+				user_id_input=scanner.nextLine();
+				if(joined.filter(col("userId").equalTo(user_id_input)).count()>0) break;
+			}
+			String user_id=user_id_input;
+			Dataset<Row> user_movies=joined.filter(col("userId").
+					equalTo(user_id_input));
+			Dataset<Row> comedies=user_movies.filter(col("genres").
+					like("%Comedy%"));
+			Dataset<Row>loved_comedies=comedies.filter(col("grade").geq(3.0));
+			
+			if (loved_comedies.count()==0)
+				System.out.println("User: "+user_id+"does not love a comedy by this list");
+			else
+				System.out.println("User: "+user_id+" loves "+loved_comedies.count()+" "
+						+ "comedies");
+			
+			System.out.println("Done Press any key to continue");
+			scanner.nextLine();
+			
+			Dataset<Row> rated_on_december=joined.filter(col("decemberRated"));
+			Dataset<Row> december_romantic=rated_on_december
+					.filter(col("genres").like("%Romance%"));
+			Dataset<Row> total_grade=december_romantic
+					.groupBy("movieId","title","genres").avg("grade");
+			Dataset<Row> top_10_romantic_movies=total_grade.orderBy(
+					col("avg(grade)").desc());
+			if(top_10_romantic_movies.count()==0)
+				System.out.println("Sorry no romantic movies rated on December");
+			else
+				top_10_romantic_movies.orderBy("movieId").show();
+			
+			System.out.println("Done Press any key to continue");
+			scanner.nextLine();
+			
+			Dataset<Row> movie_viewers=rated_on_december
+					.groupBy("movieId","title","genres").count();
+			if(rated_on_december.count()==0) {
+				 System.out.println("No movies rated_on_december");
+				 System.out.println("Done Press any key to continue");
+				 scanner.nextLine();
+				 System.exit(0);
+			}
+			Dataset<Row> movie_viewers_sorted=movie_viewers.orderBy(
+					col("count").desc());
+		  Row most_views=movie_viewers_sorted.select("count").first();
+		 Dataset<Row> most_viewed=movie_viewers_sorted.
+				 filter(movie_viewers_sorted.col("count").equalTo(most_views));
+		 if(most_viewed.count()==0)
+			 System.out.println("No movies rated_on_december");
+		  most_viewed.select("movieId","title","genres").show();
+		  
+			System.out.println("Done Press any key to continue");
+			scanner.nextLine();
+		    		
+			
+				
+			
+			
+			
+		}
 
 }
 
