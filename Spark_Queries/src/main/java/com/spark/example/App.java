@@ -82,7 +82,7 @@ public class App {
 		
 		JavaPairRDD<String,Integer>movie_1_rdd=joined_info.mapToPair( 
 				tuple->new Tuple2<String,Integer>(
-						tuple._2.substring(tuple._2.indexOf("   "))+1,1));
+					movie_info(tuple._2),1));
 		JavaPairRDD<String,Integer> movie_views_rdd=movie_1_rdd.
 				reduceByKey (( a , b)-> a + b);
 		movie_views_rdd=movie_views_rdd.
@@ -118,15 +118,15 @@ public class App {
 		String user_id=user_id_input;
 		JavaRDD<String> loved_comedies_rdd=joined_info.filter(
 				joined->joined._2.substring(0,joined._2.indexOf(' ')).equals(user_id)&&
-				Grade(joined._2)>=3 &&IsComedy(joined._2)).map(
-						pair_rdd->pair_rdd._2);
+				Grade(joined._2)>=30&&IsComedy(joined._2)).map(
+						pair_rdd->movie_info(pair_rdd._2));
 		List<String> loved_comedies=loved_comedies_rdd.collect();
 		System.out.println("---------------------------------");
 		if(loved_comedies.isEmpty())
 			System.out.println("User: "+user_id+"does not love a comedy by this list");
 		else
-			System.out.println("User: "+user_id+" loves "+loved_comedies.size()+" "
-					+ "comedies");
+			System.out.println("User: "+user_id+" loves "+loved_comedies.size()
+					+ " comedies");
 		System.out.println("Done.Press any key to  continue");
 		scanner.nextLine();
 		
@@ -136,12 +136,12 @@ public class App {
 	public static void top_10_romantic_movies_december(
 			JavaSparkContext context,JavaPairRDD<String,String> joined_info) {
 		
-		JavaPairRDD<String,Double> rated_december_romance=joined_info.
+		JavaPairRDD<String,Integer> rated_december_romance=joined_info.
 				filter(joined->rated_on_december(joined._2)&&
-				IsRomance(joined._2)).mapToPair(pair->new Tuple2<String,Double>(
+				IsRomance(joined._2)).mapToPair(pair->new Tuple2<String,Integer>(
 				movie_info(pair._2),Grade(pair._2))).reduceByKey((a,b)->a+b);
 		JavaRDD<String>sorted_rdd=rated_december_romance.mapToPair(
-				tuple->new Tuple2<Double,String>(tuple._2,tuple._1)).
+				tuple->new Tuple2<Integer,String>(tuple._2,tuple._1)).
 				sortByKey(false).map(rdd->rdd._2);
 		List<String> results=sorted_rdd.take(10);
 		print_results(results,"Top 10 december romantic movies",
@@ -169,19 +169,21 @@ public class App {
 		return attributes.get(1);
 	}
 	
-	public static double Grade(String rating_line) {
+	public static int Grade(String rating_line) {
 		List<String> attributes=Arrays.asList(rating_line.split("  "));
-		return Double.parseDouble(attributes.get(2));
+		return (int)(Double.parseDouble(attributes.get(2))*10);
 	}
 	
-	public static boolean IsComedy(String movie_info) {
-		List<String> attributes=Arrays.asList(movie_info.split("  "));
-		return attributes.get(6).contains("Comedy");
+	public static boolean IsComedy(String joined_info) {
+		String movie=movie_info(joined_info);
+		List<String> attributes=Arrays.asList(movie.split("  "));
+		return attributes.get(2).contains("Comedy");
 	}
 	
-	public static boolean IsRomance(String movie_info) {
-		List<String> attributes=Arrays.asList(movie_info.split("  "));
-		return attributes.get(6).contains("Romance");
+	public static boolean IsRomance(String joined_info) {
+		String movie=movie_info(joined_info);
+		List<String> attributes=Arrays.asList(movie.split("  "));
+		return attributes.get(2).contains("Romance");
 	}
 	
 	public static boolean rated_on_december(String rating_line) {
@@ -189,7 +191,7 @@ public class App {
 		return Rating.rated_on_december(attributes.get(3));
 	}
 	public static String movie_info(String line) {
-		return line.substring(line.indexOf("   ")+1);
+		return line.substring(line.indexOf("   ")+3);
 	}
 	public static void dataframes(SparkSession session,
 			String movies_path,String ratings_path) 
@@ -234,17 +236,17 @@ public class App {
 			}
 			String user_id=user_id_input;
 			Dataset<Row> user_movies=joined.filter(col("userId").
-					equalTo(user_id_input));
+					equalTo(user_id));
 			Dataset<Row> comedies=user_movies.filter(col("genres").
 					like("%Comedy%"));
 			Dataset<Row>loved_comedies=comedies.filter(col("grade").
-					$greater$eq(3));
+					$greater$eq(3.0));
 			
 			if (loved_comedies.count()==0)
 				System.out.println("User: "+user_id+"does not love a comedy by this list");
 			else
-				System.out.println("User: "+user_id+" loves "+loved_comedies.count()+" "
-						+ "comedies");
+				System.out.println("User: "+user_id+" loves "+loved_comedies.count()
+						+ " comedies");
 			
 			System.out.println("Done Press any key to continue");
 			scanner.nextLine();
@@ -268,7 +270,7 @@ public class App {
 					.groupBy("movieId","title","genres").count();
 			if(rated_on_december.count()==0) {
 				 System.out.println("No movies rated_on_december");
-				 System.out.println("Done Press any key to continue");
+				 System.out.println("Press any key to continue");
 				 scanner.nextLine();
 				 System.exit(0);
 			}
