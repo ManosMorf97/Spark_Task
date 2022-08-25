@@ -39,9 +39,5 @@ public class Movie implements Serializable{
 	public String getGenres() {
 		return genres;
 	}
-	
-	public int MovieId_Number() {
-		return Integer.parseInt(movieId);
-	}
 
 }

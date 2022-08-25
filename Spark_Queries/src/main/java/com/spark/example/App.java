@@ -205,21 +205,22 @@ public class App {
 						String [] parts=line.split("::");
 						return new Movie(parts[0],parts[1],parts[2]);
 					});
+			Dataset<Row> movies_df=session.createDataFrame(movies, Movie.class);
+			movies_df=movies_df.persist(StorageLevel.MEMORY_AND_DISK());
 			JavaRDD<Rating> ratings=session.read().textFile(ratings_path).
 					javaRDD().map(line->{
 						String [] parts=line.split("::");
 						return new Rating (parts[0],parts[1],parts[2],parts[3]);
 					});
-			
-			Dataset<Row> movies_df=session.createDataFrame(movies, Movie.class);
 			Dataset<Row> ratings_df=session.createDataFrame(ratings, Rating.class);
 			Dataset<Row> joined=ratings_df.join(movies_df,"movieId");
+			joined=joined.persist(StorageLevel.DISK_ONLY( )) ;
 			
 			
 			
 			
 			Dataset<Row> views=joined.groupBy("movieId","title","genres").count();
-			Dataset<Row> first_25=views.orderBy(views.col("count").desc());
+			Dataset<Row> first_25=views.orderBy(col("count").desc());
 			System.out.println("Top 25 movies");
 			first_25.select("movieId","title","genres").show(25);
 			
@@ -232,7 +233,8 @@ public class App {
 				System.out.println("Choose a user from 1 "
 						+ "to " +users.count()+" to see the comedies they love");
 				user_id_input=scanner.nextLine();
-				if(joined.filter(col("userId").equalTo(user_id_input)).count()>0) break;
+				if(joined.filter(col("userId").
+						equalTo(user_id_input)).count()>0) break;
 			}
 			String user_id=user_id_input;
 			Dataset<Row> user_movies=joined.filter(col("userId").
@@ -252,6 +254,8 @@ public class App {
 			scanner.nextLine();
 			
 			Dataset<Row> rated_on_december=joined.filter(col("decemberRated"));
+			rated_on_december=rated_on_december.persist(
+					StorageLevel.MEMORY_AND_DISK( )) ;
 			Dataset<Row> december_romantic=rated_on_december
 					.filter(col("genres").like("%Romance%"));
 			Dataset<Row> total_grade=december_romantic
@@ -261,14 +265,14 @@ public class App {
 			if(top_10_romantic_movies.count()==0)
 				System.out.println("Sorry no romantic movies rated on December");
 			else
-				top_10_romantic_movies.orderBy("movieId").show();
+				top_10_romantic_movies.orderBy("movieId").show(10);
 			
-			System.out.println("Done Press any key to continue");
+			System.out.println("Done.Press any key to continue");
 			scanner.nextLine();
 			
 			Dataset<Row> movie_viewers=rated_on_december
 					.groupBy("movieId","title","genres").count();
-			if(rated_on_december.count()==0) {
+			if(movie_viewers.count()==0) {
 				 System.out.println("No movies rated_on_december");
 				 System.out.println("Press any key to continue");
 				 scanner.nextLine();
@@ -277,8 +281,9 @@ public class App {
 			Dataset<Row> movie_viewers_sorted=movie_viewers.orderBy(
 					col("count").desc());
 		  Row most_views=movie_viewers_sorted.select("count").first();
+		  int most_views_val=most_views.getInt(0);
 		 Dataset<Row> most_viewed=movie_viewers_sorted.
-				 filter(movie_viewers_sorted.col("count").equalTo(most_views));
+				 filter(col("count").$greater$eq(most_views_val));
 		 if(most_viewed.count()==0)
 			 System.out.println("No movies rated_on_december");
 		  most_viewed.select("movieId","title","genres").show();
