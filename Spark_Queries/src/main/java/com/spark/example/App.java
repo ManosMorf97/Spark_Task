@@ -5,6 +5,7 @@ import scala.Tuple2;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -117,12 +118,12 @@ public class App {
 			if(user_ids.contains(user_id_input)) break;
 		}
 		String user_id=user_id_input;
-		JavaPairRDD<String,String> loved_comedies_pair=joined_info.filter(
-				joined->joined._2.substring(0,joined._2.indexOf(' ')).equals(user_id)&&
+		Function<Tuple2<String, String>, Boolean> loved_user_comedies=
+				joined->(joined._2.substring(0,joined._2.indexOf("  ")).equals(user_id)&&
 				Grade(joined._2)>=30&&IsComedy(joined._2));
-		JavaRDD<String> loved_comedies_rdd=loved_comedies_pair.
-		map(pair_rdd->movie_info(pair_rdd._2));
-		List<String> loved_comedies=loved_comedies_rdd.collect();
+		JavaPairRDD<String,String> loved_comedies_rdd=joined_info.filter(
+				loved_user_comedies);
+		List<Tuple2<String,String>> loved_comedies=loved_comedies_rdd.collect();
 		System.out.println("---------------------------------");
 		if(loved_comedies.isEmpty())
 			System.out.println("User: "+user_id+"does not love a comedy by this list");
@@ -137,10 +138,10 @@ public class App {
 	
 	public static void top_10_romantic_movies_december(
 			JavaSparkContext context,JavaPairRDD<String,String> joined_info) {
-		
+		Function<Tuple2<String, String>, Boolean> december_romance=
+		joined->(rated_on_december(joined._2)&&IsRomance(joined._2));	
 		JavaPairRDD<String,String> rated_december_romance=joined_info.
-				filter(joined->rated_on_december(joined._2)&&
-				IsRomance(joined._2));
+				filter( december_romance);
 		JavaPairRDD<String,Tuple2<Long,Long>> grade_tuple=
 				rated_december_romance.mapToPair(pair->
 				new Tuple2<String,Tuple2<Long,Long>>(movie_info(pair._2),
@@ -150,7 +151,8 @@ public class App {
 		JavaPairRDD<String,Double> average_grade= total_grade.mapToPair(tuple->
 				new Tuple2<String,Double>(tuple._1,(double)(tuple._2._1/tuple._2._2)));
 		
-		JavaPairRDD<Double,String>movies_average_grade=average_grade.mapToPair(
+		JavaPairRDD<Double,String>movies_average_grade=average_grade.
+				mapToPair(
 				tuple->new Tuple2<Double,String>(tuple._2,tuple._1));
 		JavaPairRDD<Double,String> sorted_pairs=movies_average_grade.
 				sortByKey(false);
