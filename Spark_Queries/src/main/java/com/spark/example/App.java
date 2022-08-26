@@ -249,12 +249,13 @@ public class App {
 						equalTo(user_id_input)).count()>0) break;
 			}
 			String user_id=user_id_input;
+			
 			Dataset<Row> user_movies=joined.filter(col("userId").
-					equalTo(user_id));
+					like(user_id));
 			Dataset<Row> comedies=user_movies.filter(col("genres").
 					like("%Comedy%"));
 			Dataset<Row>loved_comedies=comedies.filter(col("grade").
-					$greater$eq(30));
+					gt(25));
 			
 			if (loved_comedies.count()==0)
 				System.out.println("User: "+user_id+"does not love a comedy by this list");
@@ -277,7 +278,7 @@ public class App {
 			if(top_10_romantic_movies.count()==0)
 				System.out.println("Sorry no romantic movies rated on December");
 			else
-				top_10_romantic_movies.orderBy("movieId").show(10);
+				top_10_romantic_movies.show(10);
 			
 			System.out.println("Done.Press any key to continue");
 			scanner.nextLine();
@@ -295,7 +296,7 @@ public class App {
 		  Row most_views=movie_viewers_sorted.select("count").first();
 		  long most_views_val=most_views.getLong(0);
 		 Dataset<Row> most_viewed=movie_viewers_sorted.
-				 filter(col("count").$greater$eq(most_views_val));
+				 filter(col("count").geq(most_views_val));
 		 if(most_viewed.count()==0)
 			 System.out.println("No movies rated_on_december");
 		  most_viewed.select("movieId","title","genres").show();
