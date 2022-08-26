@@ -136,12 +136,18 @@ public class App {
 	public static void top_10_romantic_movies_december(
 			JavaSparkContext context,JavaPairRDD<String,String> joined_info) {
 		
-		JavaPairRDD<String,Integer> rated_december_romance=joined_info.
+		JavaPairRDD<String,Double> rated_december_romance=joined_info.
 				filter(joined->rated_on_december(joined._2)&&
-				IsRomance(joined._2)).mapToPair(pair->new Tuple2<String,Integer>(
-				movie_info(pair._2),Grade(pair._2))).reduceByKey((a,b)->a+b);
+				IsRomance(joined._2)).mapToPair(pair->
+				new Tuple2<String,Tuple2<Integer,Integer>>(
+						
+				movie_info(pair._2),new Tuple2<Integer,Integer>
+				(Grade(pair._2),1))).reduceByKey((a,b)->sum(a,b)).
+				mapToPair(tuple->
+				new Tuple2<String,Double>(tuple._1,(double)(tuple._2._1/tuple._2._2)));
+		
 		JavaRDD<String>sorted_rdd=rated_december_romance.mapToPair(
-				tuple->new Tuple2<Integer,String>(tuple._2,tuple._1)).
+				tuple->new Tuple2<Double,String>(tuple._2,tuple._1)).
 				sortByKey(false).map(rdd->rdd._2);
 		List<String> results=sorted_rdd.take(10);
 		print_results(results,"Top 10 december romantic movies",
@@ -193,6 +199,12 @@ public class App {
 	public static String movie_info(String line) {
 		return line.substring(line.indexOf("   ")+3);
 	}
+	
+	public static Tuple2<Integer,Integer> sum(Tuple2<Integer,Integer> a,
+			Tuple2<Integer,Integer> b){
+		
+		return new Tuple2<Integer,Integer>(a._1+b._1,a._2+b._2);
+	}
 	public static void dataframes(SparkSession session,
 			String movies_path,String ratings_path) 
 					throws InterruptedException {
@@ -242,7 +254,7 @@ public class App {
 			Dataset<Row> comedies=user_movies.filter(col("genres").
 					like("%Comedy%"));
 			Dataset<Row>loved_comedies=comedies.filter(col("grade").
-					$greater$eq(3.0));
+					$greater$eq(30));
 			
 			if (loved_comedies.count()==0)
 				System.out.println("User: "+user_id+"does not love a comedy by this list");
@@ -281,7 +293,7 @@ public class App {
 			Dataset<Row> movie_viewers_sorted=movie_viewers.orderBy(
 					col("count").desc());
 		  Row most_views=movie_viewers_sorted.select("count").first();
-		  int most_views_val=most_views.getInt(0);
+		  long most_views_val=most_views.getLong(0);
 		 Dataset<Row> most_viewed=movie_viewers_sorted.
 				 filter(col("count").$greater$eq(most_views_val));
 		 if(most_viewed.count()==0)

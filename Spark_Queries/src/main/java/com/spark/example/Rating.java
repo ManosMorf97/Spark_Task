@@ -7,12 +7,12 @@ public class Rating implements Serializable{
 	private static final long serialVersionUID = 1L;
 	private String userId;
 	private String movieId;
-	private float grade;
+	private int grade;
 	private boolean december_rated;
 	public Rating(String userId, String movieId, String grade,String timestamp){
 		this.userId = userId;
 		this.movieId = movieId;
-		this.grade = Float.parseFloat(grade);
+		this.grade = (int)(Float.parseFloat(grade)*10);
 		december_rated=rated_on_december(timestamp);
 	}
 	
