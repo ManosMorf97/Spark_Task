@@ -28,7 +28,7 @@ public class Rating implements Serializable{
 	public String getMovieId() {
 		return movieId;
 	}
-	public float getGrade() {
+	public int getGrade() {
 		return grade;
 	}
 	

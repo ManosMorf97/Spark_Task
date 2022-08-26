@@ -52,8 +52,10 @@ public class App {
 					);
 			System.out.println("A BIG join is on the way.This could take a while");
 			System.out.println("Loading");
-			JavaPairRDD<String,String> joined_info=rating_info.
-					join(movie_info).mapToPair(tuple->new Tuple2<String,String>(
+			JavaPairRDD<String,Tuple2<String,String>> joined=rating_info.
+					join(movie_info);
+			JavaPairRDD<String,String>	joined_info=joined.
+					mapToPair(tuple->new Tuple2<String,String>(
 							tuple._1,tuple._2._1+"   "+tuple._2._2)
 					);
 			joined_info=joined_info.persist(StorageLevel.DISK_ONLY( )) ;
@@ -80,17 +82,15 @@ public class App {
 	public static void most_viewed_25_movies(JavaSparkContext context,
 			JavaPairRDD<String,String> joined_info) {
 		
-		JavaPairRDD<String,Integer>movie_1_rdd=joined_info.mapToPair( 
-				tuple->new Tuple2<String,Integer>(
-					movie_info(tuple._2),1));
-		JavaPairRDD<String,Integer> movie_views_rdd=movie_1_rdd.
+		JavaPairRDD<String,Long>movie_1_rdd=joined_info.mapToPair( 
+				tuple->new Tuple2<String,Long>(
+					movie_info(tuple._2),(long)1));
+		JavaPairRDD<String,Long> movie_views_rdd=movie_1_rdd.
 				reduceByKey (( a , b)-> a + b);
-		movie_views_rdd=movie_views_rdd.
-				persist(StorageLevel.MEMORY_AND_DISK( ));
-		JavaPairRDD<Integer,String> views_movie_rdd=movie_views_rdd.
+		JavaPairRDD<Long,String> views_movie_rdd=movie_views_rdd.
 				mapToPair(mvr->
-					new Tuple2<Integer,String>(mvr._2(),mvr._1()));
-		JavaPairRDD<Integer,String>sorted_vmrdd=views_movie_rdd.
+					new Tuple2<Long,String>(mvr._2(),mvr._1()));
+		JavaPairRDD<Long,String>sorted_vmrdd=views_movie_rdd.
 				sortByKey(false);
 		JavaRDD<String> top_movies=sorted_vmrdd.map(tuple->tuple._2);
 		List<String> results=top_movies.take(25);
@@ -102,9 +102,10 @@ public class App {
 		
 		JavaPairRDD<String,String> user_ids_pair=joined_info.mapToPair(
 				rating->new Tuple2<String,String>(
-						rating._2.substring(0,rating._2.indexOf("  "))," ")).
-							reduceByKey((a,b)->" ");
-		List<String> user_ids=user_ids_pair.collect().
+						rating._2.substring(0,rating._2.indexOf("  "))," "));
+		JavaPairRDD<String,String> users_ids_reduced=
+						user_ids_pair.reduceByKey((a,b)->" ");
+		List<String> user_ids=users_ids_reduced.collect().
 				stream().
 				map(res->res._1).
 				collect(Collectors.toList());
@@ -116,10 +117,11 @@ public class App {
 			if(user_ids.contains(user_id_input)) break;
 		}
 		String user_id=user_id_input;
-		JavaRDD<String> loved_comedies_rdd=joined_info.filter(
+		JavaPairRDD<String,String> loved_comedies_pair=joined_info.filter(
 				joined->joined._2.substring(0,joined._2.indexOf(' ')).equals(user_id)&&
-				Grade(joined._2)>=30&&IsComedy(joined._2)).map(
-						pair_rdd->movie_info(pair_rdd._2));
+				Grade(joined._2)>=30&&IsComedy(joined._2));
+		JavaRDD<String> loved_comedies_rdd=loved_comedies_pair.
+		map(pair_rdd->movie_info(pair_rdd._2));
 		List<String> loved_comedies=loved_comedies_rdd.collect();
 		System.out.println("---------------------------------");
 		if(loved_comedies.isEmpty())
@@ -136,19 +138,23 @@ public class App {
 	public static void top_10_romantic_movies_december(
 			JavaSparkContext context,JavaPairRDD<String,String> joined_info) {
 		
-		JavaPairRDD<String,Double> rated_december_romance=joined_info.
+		JavaPairRDD<String,String> rated_december_romance=joined_info.
 				filter(joined->rated_on_december(joined._2)&&
-				IsRomance(joined._2)).mapToPair(pair->
-				new Tuple2<String,Tuple2<Integer,Integer>>(
-						
-				movie_info(pair._2),new Tuple2<Integer,Integer>
-				(Grade(pair._2),1))).reduceByKey((a,b)->sum(a,b)).
-				mapToPair(tuple->
+				IsRomance(joined._2));
+		JavaPairRDD<String,Tuple2<Long,Long>> grade_tuple=
+				rated_december_romance.mapToPair(pair->
+				new Tuple2<String,Tuple2<Long,Long>>(movie_info(pair._2),
+						new Tuple2<Long,Long>(Grade(pair._2),(long)1)));
+		JavaPairRDD<String,Tuple2<Long,Long>> total_grade=grade_tuple.
+				reduceByKey((a,b)->sum(a,b));
+		JavaPairRDD<String,Double> average_grade= total_grade.mapToPair(tuple->
 				new Tuple2<String,Double>(tuple._1,(double)(tuple._2._1/tuple._2._2)));
 		
-		JavaRDD<String>sorted_rdd=rated_december_romance.mapToPair(
-				tuple->new Tuple2<Double,String>(tuple._2,tuple._1)).
-				sortByKey(false).map(rdd->rdd._2);
+		JavaPairRDD<Double,String>movies_average_grade=average_grade.mapToPair(
+				tuple->new Tuple2<Double,String>(tuple._2,tuple._1));
+		JavaPairRDD<Double,String> sorted_pairs=movies_average_grade.
+				sortByKey(false);
+		JavaRDD<String>sorted_rdd=sorted_pairs.map(rdd->rdd._2);
 		List<String> results=sorted_rdd.take(10);
 		print_results(results,"Top 10 december romantic movies",
 				"Sorry no romantic movies rated on December");		
@@ -175,9 +181,9 @@ public class App {
 		return attributes.get(1);
 	}
 	
-	public static int Grade(String rating_line) {
+	public static long Grade(String rating_line) {
 		List<String> attributes=Arrays.asList(rating_line.split("  "));
-		return (int)(Double.parseDouble(attributes.get(2))*10);
+		return (long)(Double.parseDouble(attributes.get(2))*10);
 	}
 	
 	public static boolean IsComedy(String joined_info) {
@@ -200,11 +206,13 @@ public class App {
 		return line.substring(line.indexOf("   ")+3);
 	}
 	
-	public static Tuple2<Integer,Integer> sum(Tuple2<Integer,Integer> a,
-			Tuple2<Integer,Integer> b){
+	public static Tuple2<Long,Long> sum(Tuple2<Long,Long> a,
+			Tuple2<Long,Long> b){
 		
-		return new Tuple2<Integer,Integer>(a._1+b._1,a._2+b._2);
+		return new Tuple2<Long,Long>(a._1+b._1,a._2+b._2);
 	}
+	
+	
 	public static void dataframes(SparkSession session,
 			String movies_path,String ratings_path) 
 					throws InterruptedException {
@@ -219,6 +227,7 @@ public class App {
 					});
 			Dataset<Row> movies_df=session.createDataFrame(movies, Movie.class);
 			movies_df=movies_df.persist(StorageLevel.MEMORY_AND_DISK());
+			
 			JavaRDD<Rating> ratings=session.read().textFile(ratings_path).
 					javaRDD().map(line->{
 						String [] parts=line.split("::");
