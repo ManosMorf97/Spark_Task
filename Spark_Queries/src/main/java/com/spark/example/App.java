@@ -14,7 +14,9 @@ import org.apache.spark.storage.StorageLevel;
 
 import static org.apache.spark.sql.functions.col;
 
+import java.awt.Desktop;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
@@ -40,9 +42,9 @@ public class App {
 		try(JavaSparkContext context=new 
 				JavaSparkContext(session.sparkContext())){
 			//ArrayList<Movie> movies=new ArrayList<Movie>();
-			System.out.println("Movies file:");
+			System.out.println("Movies file with absolute path:");
 			String movies_file=scanner.nextLine();
-			System.out.println("Ratings file:");
+			System.out.println("Ratings file with absolute path:");
 			String ratings_file=scanner.nextLine();
 			JavaRDD<String> movie_lines=context.
 					textFile(movies_file);
@@ -76,6 +78,7 @@ public class App {
 			//print results
 		    //write your code
 			context.close();
+			Desktop.getDesktop().open(new File("Queries.txt"));
 			
 			
 			
@@ -83,7 +86,7 @@ public class App {
 	}
 	
 	public static void most_viewed_25_movies(JavaSparkContext context,
-			JavaPairRDD<String,String> joined_info)throws IOException {
+			JavaPairRDD<String,String> joined_info)throws IOException,InterruptedException {
 		
 		JavaPairRDD<String,Long>movie_1_rdd=joined_info.mapToPair( 
 				tuple->new Tuple2<String,Long>(
@@ -101,7 +104,7 @@ public class App {
 	}
 	
 	public static void  Good_Comedies(JavaSparkContext context,
-			JavaPairRDD<String,String> joined_info)throws IOException {
+			JavaPairRDD<String,String> joined_info)throws IOException,InterruptedException {
 		WriteEmpty();
 		JavaPairRDD<String,String> user_ids_pair=joined_info.mapToPair(
 				rating->new Tuple2<String,String>(
@@ -115,7 +118,7 @@ public class App {
 		String user_id_input="";
 		while(true) {
 			System.out.println("Choose a user from 1 "
-					+ "to " +user_ids.size()+" to see the comedies they love");
+					+ "to " +user_ids.size()+" to see how many comedies they love");
 			user_id_input=scanner.nextLine();
 			if(user_ids.contains(user_id_input)) break;
 		}
@@ -137,15 +140,15 @@ public class App {
 			bw.write("User: "+user_id+" loves "+loved_comedies.size()
 					+ " comedies"+"\n");
 		}
-		System.out.println("Done.Press any key to  continue");
-		scanner.nextLine();
+		System.out.println("Done.");
+		Thread.sleep(10);
 		
 		
 	}
 	
 	public static void top_10_romantic_movies_december(
 			JavaSparkContext context,JavaPairRDD<String,String> joined_info)
-	throws IOException{
+	throws IOException,InterruptedException{
 		Function<Tuple2<String, String>, Boolean> december_romance=
 		joined->(rated_on_december(joined._2)&&IsRomance(joined._2));	
 		JavaPairRDD<String,String> rated_december_romance=joined_info.
@@ -165,13 +168,13 @@ public class App {
 				sortByKey(false);
 		JavaRDD<String>sorted_rdd=sorted_pairs.map(rdd->rdd._2);
 		List<String> results=sorted_rdd.take(10);
-		print_results(results,"Top 10 december romantic movies",
+		print_results(results,"Top 10 december romantic movies rated on December",
 				"Sorry no romantic movies rated on December");		
 	}
 	
 	public static void print_results(
 			List<String> results,String msg,
-			String msg_noRows) throws IOException {
+			String msg_noRows) throws IOException,InterruptedException {
 		
 		System.out.println("---------------------------------");
 		WriteEmpty();
@@ -179,7 +182,7 @@ public class App {
 		WriteEmpty();
 		System.out.println(msg);
 		if(results.isEmpty()) {
-			System.out.println(msg_noRows + " Press any key to continue");
+			System.out.println(msg_noRows + " After 10 seconds the next Query is going to be proccesed");
 			bw.write(msg_noRows + " \n");
 		}else {
 			results.forEach(
@@ -192,9 +195,9 @@ public class App {
 						}
 					}
 					);
-			System.out.println("Done.Press any key to  continue");
+			System.out.println("Done.After 10 seconds the next Query is going to be proccesed");
 		}
-		scanner.nextLine();
+		Thread.sleep(10);
 	}
 	
 	public static String takeMovieId(String line) {
@@ -269,21 +272,21 @@ public class App {
 			
 			Dataset<Row> views=joined.groupBy("movieId","title","genres").count();
 			Dataset<Row> first_25=views.orderBy(col("count").desc());
-			System.out.println("Top 25 movies");
-			bw.write("Top 25 movies"+"\n");
+			System.out.println("The 25 most rated movies are");
+			bw.write("The 25 most rated movies are"+"\n");
 			WriteEmpty();
 			first_25.select("movieId","title","genres").show(25);
 			writeRows(first_25,"25");
 			WriteEmpty();
 			
-			System.out.println("Done Press any key to continue");
-			scanner.nextLine();
+			System.out.println("Done.After 10 seconds the next Query is going to be proccesed");
+			Thread.sleep(10);
 			
 			Dataset<Row> users=joined.groupBy("userId").count();
 			String user_id_input="";
 			while(true) {
 				System.out.println("Choose a user from 1 "
-						+ "to " +users.count()+" to see the comedies they love");
+						+ "to " +users.count()+" to see how many comedies they love");
 				user_id_input=scanner.nextLine();
 				if(joined.filter(col("userId").
 						equalTo(user_id_input)).count()>0) break;
@@ -308,8 +311,8 @@ public class App {
 				+ " comedies"+"\n");
 			}
 			WriteEmpty();
-			System.out.println("Done Press any key to continue");
-			scanner.nextLine();
+			System.out.println("Done.After 10 seconds the next Query is going to be proccesed");
+			Thread.sleep(10);
 			
 			Dataset<Row> rated_on_december=joined.filter(col("decemberRated"));
 			rated_on_december=rated_on_december.persist(
@@ -333,8 +336,8 @@ public class App {
 				writeRows(top_10_romantic_movies,"10");
 			}
 			
-			System.out.println("Done.Press any key to continue");
-			scanner.nextLine();
+			System.out.println("Done.After 10 seconds the next Query is going to be proccesed");
+			Thread.sleep(10);
 			
 			Dataset<Row> movie_viewers=rated_on_december
 					.groupBy("movieId","title","genres").count();
@@ -342,8 +345,11 @@ public class App {
 				 System.out.println("No movies rated_on_december");
 				 bw.write("No movies rated_on_december"+"\n");
 				 WriteEmpty();
-				 System.out.println("Press any key to continue");
-				 scanner.nextLine();
+				 System.out.println("After 10 seconds the next Query is going to be proccesed");
+				 Thread.sleep(10);
+				 bw.close();
+				 Desktop.getDesktop().open(new File("Queries.txt"));
+				 scanner.close();
 				 System.exit(0);
 			}
 			Dataset<Row> movie_viewers_sorted=movie_viewers.orderBy(
@@ -356,14 +362,15 @@ public class App {
 			 System.out.println("No movies rated_on_december");
 			 bw.write("No movies rated_on_december"+"\n");
 		 }
-		  System.out.println("Most user saw these movies:");
-		 bw.write("Most user saw these movies:"+"\n");
-		  most_viewed.select("movieId","title","genres").show();
-		  writeRows(most_viewed,"all");
-		  
-			System.out.println("Done Press any key to continue");
-			scanner.nextLine();
-		    		
+		 else{
+		 	System.out.println("Most users rate these movies:");
+		 	bw.write("Most user rate these movies on December: "+"\n");
+		  	WriteEmpty();
+		  	most_viewed.select("movieId","title","genres").show();
+		  	writeRows(most_viewed,"all");
+		 }
+			System.out.println("Done.The file Queries.txt will be opened in a moment");
+			Thread.sleep(4);		
 		}
 		public static void print_write(String res) throws IOException  {
 			res=res.replace("::", " ");

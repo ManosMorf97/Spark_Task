@@ -20,7 +20,7 @@ public class Rating implements Serializable{
 		long timestamp_long=Long.parseLong(timestamp);
 		Timestamp ts = new Timestamp(timestamp_long);
 		Date date = new Date(ts.getTime());
-		return date.toString().contains(" Jan ");
+		return date.toString().contains(" Dec ");
 	}
 	public String getUserId() {
 		return userId;

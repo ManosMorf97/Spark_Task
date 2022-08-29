@@ -1,2 +1,2 @@
-movies="/home/manos/Μεταπτυχιακό/1o Εξάμηνο/Συστήματα Διαχείρησης Δεδομένων Μεγάλης Κλίμακας/Εργασία/Spark_Queries/ml-10m/ml-10M100K/movies.dat"
-ratings="/home/manos/Μεταπτυχιακό/1o Εξάμηνο/Συστήματα Διαχείρησης Δεδομένων Μεγάλης Κλίμακας/Εργασία/Spark_Queries/ml-10m/ml-10M100K/ratings.dat"
+movies=/home/manos/Μεταπτυχιακό/1o Εξάμηνο/Συστήματα Διαχείρησης Δεδομένων Μεγάλης Κλίμακας/Εργασία/Spark_Queries/ml-10m/ml-10M100K/movies.dat
+ratings=/home/manos/Μεταπτυχιακό/1o Εξάμηνο/Συστήματα Διαχείρησης Δεδομένων Μεγάλης Κλίμακας/Εργασία/Spark_Queries/ml-10m/ml-10M100K/ratings.dat
