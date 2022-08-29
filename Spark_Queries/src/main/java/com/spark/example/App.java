@@ -5,6 +5,7 @@ import scala.Tuple2;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.ForeachFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -101,7 +102,7 @@ public class App {
 	
 	public static void  Good_Comedies(JavaSparkContext context,
 			JavaPairRDD<String,String> joined_info)throws IOException {
-		
+		WriteEmpty();
 		JavaPairRDD<String,String> user_ids_pair=joined_info.mapToPair(
 				rating->new Tuple2<String,String>(
 						rating._2.substring(0,rating._2.indexOf("::"))," "));
@@ -173,7 +174,9 @@ public class App {
 			String msg_noRows) throws IOException {
 		
 		System.out.println("---------------------------------");
-		bw.write("---------------------------------"+"\n");
+		WriteEmpty();
+		bw.write(msg+"\n");
+		WriteEmpty();
 		System.out.println(msg);
 		if(results.isEmpty()) {
 			System.out.println(msg_noRows + " Press any key to continue");
@@ -238,9 +241,10 @@ public class App {
 	public static void dataframes(SparkSession session,
 			String movies_file,String ratings_file) 
 					throws InterruptedException,IOException {
-		
+		    WriteEmpty();
 			System.out.println("Now we will use Dataframes");
 			bw.write("Dataframe Results"+"\n");
+			WriteEmpty();
 			Thread.sleep(2);
 			
 			JavaRDD<Movie> movies=session.read().textFile(movies_file).
@@ -266,8 +270,11 @@ public class App {
 			Dataset<Row> views=joined.groupBy("movieId","title","genres").count();
 			Dataset<Row> first_25=views.orderBy(col("count").desc());
 			System.out.println("Top 25 movies");
+			bw.write("Top 25 movies"+"\n");
+			WriteEmpty();
 			first_25.select("movieId","title","genres").show(25);
-			bw.write(first_25.select("movieId","title","genres").take(25).toString()+"\n");
+			writeRows(first_25,"25");
+			WriteEmpty();
 			
 			System.out.println("Done Press any key to continue");
 			scanner.nextLine();
@@ -300,6 +307,7 @@ public class App {
 				bw.write("User: "+user_id+" loves "+loved_comedies.count()
 				+ " comedies"+"\n");
 			}
+			WriteEmpty();
 			System.out.println("Done Press any key to continue");
 			scanner.nextLine();
 			
@@ -315,10 +323,14 @@ public class App {
 			if(top_10_romantic_movies.count()==0) {
 				System.out.println("Sorry no romantic movies rated on December");
 				bw.write("Sorry no romantic movies rated on December"+"\n");
+				WriteEmpty();
 			}
 			else {
+				System.out.println("To 10 romantic movies rated on December");
+				bw.write("To 10 romantic movies rated on December"+"\n");
+				WriteEmpty();
 				top_10_romantic_movies.show(10);
-				bw.write(top_10_romantic_movies.take(10).toString()+"\n");
+				writeRows(top_10_romantic_movies,"10");
 			}
 			
 			System.out.println("Done.Press any key to continue");
@@ -329,6 +341,7 @@ public class App {
 			if(movie_viewers.count()==0) {
 				 System.out.println("No movies rated_on_december");
 				 bw.write("No movies rated_on_december"+"\n");
+				 WriteEmpty();
 				 System.out.println("Press any key to continue");
 				 scanner.nextLine();
 				 System.exit(0);
@@ -339,19 +352,47 @@ public class App {
 		  long most_views_val=most_views.getLong(0);
 		 Dataset<Row> most_viewed=movie_viewers_sorted.
 				 filter(col("count").geq(most_views_val));
-		 if(most_viewed.count()==0)
+		 if(most_viewed.count()==0) {
 			 System.out.println("No movies rated_on_december");
+			 bw.write("No movies rated_on_december"+"\n");
+		 }
+		  System.out.println("Most user saw these movies:");
+		 bw.write("Most user saw these movies:"+"\n");
 		  most_viewed.select("movieId","title","genres").show();
-		  bw.write(most_viewed.select("movieId","title","genres").collect().toString()
-				  +"\n");
+		  writeRows(most_viewed,"all");
 		  
 			System.out.println("Done Press any key to continue");
 			scanner.nextLine();
 		    		
 		}
 		public static void print_write(String res) throws IOException  {
-			System.out.println(res.replace("::", " "));
+			res=res.replace("::", " ");
+			System.out.println(res);
 				bw.write(res+"\n");
+		}
+		
+		public static void writeRows (Dataset<Row> query,String ammount) throws IOException{
+			query=query.select("movieId","title","genres");
+			if(!ammount.equals("all"))
+				query=query.limit(Integer.parseInt(ammount));
+			query.foreach((ForeachFunction<Row>)row->bw.write(StringRow(row)+"\n"));
+			WriteEmpty();
+		}
+		public static String StringRow(Row row) {
+			String result="";
+			for(int i=0; i<3; i++) {
+				result+=row.getString(i)+" ";
+			}
+			return result;
+			
+		} 
+		
+		public static void wrtieRows(Dataset<Row> query) throws IOException {
+			writeRows(query,"all");
+		}
+		
+		public static void WriteEmpty() throws IOException{
+			bw.write("---------------------------------"+"\n");
 		}
 		
 	}
