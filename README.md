@@ -8,7 +8,7 @@ There are 4 queries:
 1) Top 25 movies. 
 2) Most loved rommantic comedies of a user by their id.
 3) Top 10 most perfect movies of December.
-4) Movies which watched by most users(This have implemented only on spark sql).
+4) Movies which watched by most users(This have implemented only on spark-dataframes).
 
 
  
