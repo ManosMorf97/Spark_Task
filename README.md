@@ -1,4 +1,4 @@
-# Spark_Task
+# Spark-Task
 
 At this project there are two BIG files:
 1) Users info who has details about the movies the have watched and the rating the have given to a Movie and obviously the id of the rated movie.
